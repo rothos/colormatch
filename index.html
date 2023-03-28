@@ -35,7 +35,8 @@
         align-items: center;
         justify-content: center;
         background-color: white;
-        padding: 40px;
+        width: 350px;
+        padding: 40px 40px 20px;
         border-radius: 10px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         z-index: 555;
@@ -56,13 +57,13 @@
     .color-circle {
         width: 100px;
         height: 100px;
-        border: 1px solid #ddd;
+        border: 2px solid #222;
         border-radius: 50%;
         position: relative;
     }
 
     .striped {
-        background-image: linear-gradient(45deg, #eee 25%, transparent 25%, transparent 50%, #eee 50%, #eee 75%, transparent 75%, transparent);
+        background-image: linear-gradient(-45deg, #eee 25%, transparent 25%, transparent 50%, #eee 50%, #eee 75%, transparent 75%, transparent);
     }
 
     .color-circle.ready {
@@ -71,18 +72,23 @@
 
     .label {
         font-size: 0.8em;
-        color: gray;
+        color: #999;
         position: absolute;
-        bottom: -18px;
+        bottom: -20px;
         width: 100%;
         text-align: center;
+    }
+
+    #color-palette-label {
+        margin-top: 18px;
+        color: #444;
     }
 
     #color-palette {
         display: flex;
         justify-content: center;
         gap: 10px;
-        margin-bottom: 10px;
+        margin: 10px 0;
     }
 
     #color-palette>div {
@@ -91,7 +97,7 @@
 
     .palette-counter {
         font-size: 10px;
-        color: #888;
+        color: #999;
         text-align: center;
         align-self: flex-end;
         display: inline-block;
@@ -102,7 +108,7 @@
     .color {
         width: 50px;
         height: 50px;
-        border: 1px solid #ddd;
+        border: 2px solid #222;
         border-radius: 50%;
         cursor: pointer;
         position: relative;
@@ -121,14 +127,40 @@
         margin-top: 20px;
     }
 
-    #try-again {
+    button#try-again {
         margin-top: 10px;
         cursor: pointer;
+        background-color: #f0f0f0;
+        color: #333;
+        border: 1px solid #ddd;
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        padding: 10px 20px;
+        border-radius: 5px;
+        transition: all 0.3s ease;
+        outline: none;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    button#try-again:hover {
+        background-color: #e0e0e0;
+    }
+
+    button#try-again:active {
+        background-color: #d0d0d0;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
 
     #total-mix-count {
         font-size: 0.8em;
         margin-bottom: 20px;
+    }
+
+    #help {
+        font-size: 11px;
+        color: #999;
+        margin-top: 30px;
+        display: inline-block;
     }
 
     #success-animation {
@@ -141,31 +173,6 @@
         background-color: rgba(76, 175, 80, 0.5);
         animation: fadeIn 1s linear;
         z-index: 0;
-    }
-
-    .spinner {
-        /*        display: none;*/
-        border: 5px solid #f3f3f3;
-        border-top: 5px solid #3498db;
-        border-radius: 50%;
-        width: 30px;
-        height: 30px;
-        animation: spin 2s linear infinite;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 999;
-    }
-
-    @keyframes spin {
-        0% {
-            transform: translate(-50%, -50%) rotate(0deg);
-        }
-
-        100% {
-            transform: translate(-50%, -50%) rotate(360deg);
-        }
     }
     </style>
 </head>
@@ -186,10 +193,9 @@
         <div id="status"></div>
         <div id="total-mix-count">Colors mixed: 0</div>
         <button id="try-again">Reset (or press R)</button>
+        <div id="help"><p>To mix colors, click the colors in the palette or press the keys {a,s,d,f,g}. To reset, click the reset button or press R. Refreshing the page restarts the game.</p></div>
     </div>
-    <div id="success-animation">
-        <div class="spinner"></div>
-    </div>
+    <div id="success-animation"></div>
     <script>
     const targetColor = document.getElementById("target-color");
     const mixedColorDiv = document.getElementById("mixed-color");
@@ -200,7 +206,6 @@
     const totalMixCount = document.getElementById("total-mix-count");
     const successAnimation = document.getElementById("success-animation");
     const body = document.querySelector("body");
-    const spinner = document.querySelector(".spinner");
 
     const colors = [
         "rgb(255, 40, 40)", // red
@@ -266,7 +271,6 @@
             successAnimation.style.display = "flex";
             setTimeout(() => {
                 successAnimation.style.display = "none";
-                spinner.style.animation = "spin 2s linear infinite";
                 clicksRequired++;
                 targetRGB = generateTargetColor();
                 mixedColorDiv.style.backgroundColor = "rgba(0, 0, 0, 0)";
@@ -282,7 +286,6 @@
                 colorPalette.childNodes.forEach(child => {
                     child.classList.remove("disabled");
                 });
-                spinner.style.animation = "";
             }, 1000);
         } else {
             //status.textContent = "";
@@ -329,12 +332,36 @@
     }
 
     tryAgainBtn.addEventListener("click", resetGame);
-    
+
     document.addEventListener("keydown", (event) => {
-      if (event.key.toLowerCase() === "r") {
-        resetGame();
-      }
+        if (event.key.toLowerCase() === "r") {
+            resetGame();
+        }
     });
+
+    function mixColorByIndex(index) {
+        if (index < colors.length) {
+            mixColor(colors[index]);
+        }
+    }
+
+    document.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if (key === "r") {
+            resetGame();
+        } else if (key === "a") {
+            mixColorByIndex(0);
+        } else if (key === "s") {
+            mixColorByIndex(1);
+        } else if (key === "d") {
+            mixColorByIndex(2);
+        } else if (key === "f") {
+            mixColorByIndex(3);
+        } else if (key === "g") {
+            mixColorByIndex(4);
+        }
+    });
+
 
     targetRGB = generateTargetColor();
     hint.textContent = `Mix ${clicksRequired} colors to make the target color`;
