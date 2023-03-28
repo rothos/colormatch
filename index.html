@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Conquest</title>
+    <style>
+    @keyframes fadeIn {
+
+        0%,
+        100% {
+            opacity: 0
+        }
+
+        20%,
+        80% {
+            opacity: 1
+        }
+    }
+
+    body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+        background-color: #f0f0f0;
+    }
+
+    #game-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: white;
+        padding: 40px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        z-index: 555;
+    }
+
+    #hint {
+        font-size: 1.2em;
+        margin-bottom: 20px;
+    }
+
+    #color-display {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        margin-bottom: 20px;
+    }
+
+    .color-circle {
+        width: 100px;
+        height: 100px;
+        border: 1px solid #ddd;
+        border-radius: 50%;
+        position: relative;
+    }
+
+    .striped {
+        background-image: linear-gradient(45deg, #eee 25%, transparent 25%, transparent 50%, #eee 50%, #eee 75%, transparent 75%, transparent);
+    }
+
+    .color-circle.ready {
+        background-image: none;
+    }
+
+    .label {
+        font-size: 0.8em;
+        color: gray;
+        position: absolute;
+        bottom: -18px;
+        width: 100%;
+        text-align: center;
+    }
+
+    #color-palette {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    #color-palette>div {
+        display: flex;
+    }
+
+    .palette-counter {
+        font-size: 10px;
+        color: #888;
+        text-align: center;
+        align-self: flex-end;
+        display: inline-block;
+        width: 100%;
+        margin-bottom: -16px;
+    }
+
+    .color {
+        width: 50px;
+        height: 50px;
+        border: 1px solid #ddd;
+        border-radius: 50%;
+        cursor: pointer;
+        position: relative;
+    }
+
+    .color-count {
+        position: absolute;
+        bottom: -12px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.8em;
+        color: gray;
+    }
+
+    #status {
+        margin-top: 20px;
+    }
+
+    #try-again {
+        margin-top: 10px;
+        cursor: pointer;
+    }
+
+    #total-mix-count {
+        font-size: 0.8em;
+        margin-bottom: 20px;
+    }
+
+    #success-animation {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(76, 175, 80, 0.5);
+        animation: fadeIn 1s linear;
+        z-index: 0;
+    }
+
+    .spinner {
+        /*        display: none;*/
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid #3498db;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 2s linear infinite;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 999;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: translate(-50%, -50%) rotate(0deg);
+        }
+
+        100% {
+            transform: translate(-50%, -50%) rotate(360deg);
+        }
+    }
+    </style>
+</head>
+
+<body>
+    <div id="game-container">
+        <div id="hint"></div>
+        <div id="color-display">
+            <div id="target-color" class="color-circle">
+                <div class="label">Target Color</div>
+            </div>
+            <div id="mixed-color" class="color-circle striped">
+                <div class="label">Mixed Color</div>
+            </div>
+        </div>
+        <div id="color-palette-label">Palette</div>
+        <div id="color-palette"></div>
+        <div id="status"></div>
+        <div id="total-mix-count">Colors mixed: 0</div>
+        <button id="try-again">Reset (or press R)</button>
+    </div>
+    <div id="success-animation">
+        <div class="spinner"></div>
+    </div>
+    <script>
+    const targetColor = document.getElementById("target-color");
+    const mixedColorDiv = document.getElementById("mixed-color");
+    const colorPalette = document.getElementById("color-palette");
+    const status = document.getElementById("status");
+    const tryAgainBtn = document.getElementById("try-again");
+    const hint = document.getElementById("hint");
+    const totalMixCount = document.getElementById("total-mix-count");
+    const successAnimation = document.getElementById("success-animation");
+    const body = document.querySelector("body");
+    const spinner = document.querySelector(".spinner");
+
+    const colors = [
+        "rgb(255, 40, 40)", // red
+        "rgb(40, 255, 40)", // green
+        "rgb(40, 40, 255)", // blue
+        "rgb(0, 0, 0)", // black
+        "rgb(255, 255, 255)" // white
+    ];
+
+    let targetRGB = '';
+    let mixedColorRGB = [255, 255, 255];
+    let mixCount = 0;
+    let clicksRequired = 3;
+    let targetColorCount = [];
+    let mixedColorCount = Array(colors.length).fill(0);
+
+    function generateTargetColor() {
+        targetColorCount = Array(colors.length).fill(0);
+
+        for (let i = 0; i < clicksRequired; i++) {
+            const randomIndex = Math.floor(Math.random() * colors.length);
+            targetColorCount[randomIndex]++;
+        }
+
+        const generatedColorRGB = targetColorCount.reduce((acc, count, index) => {
+            const colorRGB = colors[index].match(/\d+/g).map(Number);
+            return acc.map((channel, chIndex) => {
+                return channel + colorRGB[chIndex] * count;
+            });
+        }, [0, 0, 0]).map(channel => channel / clicksRequired);
+
+        const rgb = `rgb(${generatedColorRGB[0]}, ${generatedColorRGB[1]}, ${generatedColorRGB[2]})`;
+        targetColor.style.backgroundColor = rgb;
+        mixedColorDiv.style.backgroundColor = "rgba(0, 0, 0, 0)";
+        mixedColorDiv.classList.remove("ready");
+        return rgb;
+    }
+
+    function mixColor(selectedColor) {
+        mixCount++;
+        const colorIndex = colors.indexOf(selectedColor);
+        mixedColorCount[colorIndex]++;
+
+        const mixedColorRGB = mixedColorCount.reduce((acc, count, index) => {
+            const colorRGB = colors[index].match(/\d+/g).map(Number);
+            return acc.map((channel, chIndex) => {
+                return channel + colorRGB[chIndex] * count;
+            });
+        }, [0, 0, 0]).map(channel => channel / mixCount);
+
+        const mixedColor = `rgb(${mixedColorRGB[0]}, ${mixedColorRGB[1]}, ${mixedColorRGB[2]})`;
+        mixedColorDiv.style.backgroundColor = mixedColor;
+        mixedColorDiv.classList.add("ready");
+        totalMixCount.textContent = `Colors mixed: ${mixCount}`;
+        updatePaletteCounters();
+
+        if (arraysEqual(mixedColorCount, targetColorCount)) {
+            //status.textContent = "Congratulations! You've matched the color!";
+            tryAgainBtn.disabled = true;
+            colorPalette.childNodes.forEach(child => {
+                child.classList.add("disabled");
+            });
+            successAnimation.style.display = "flex";
+            setTimeout(() => {
+                successAnimation.style.display = "none";
+                spinner.style.animation = "spin 2s linear infinite";
+                clicksRequired++;
+                targetRGB = generateTargetColor();
+                mixedColorDiv.style.backgroundColor = "rgba(0, 0, 0, 0)";
+                mixedColorDiv.classList.remove("ready");
+                let mixedColorRGB = [255, 255, 255];
+                mixedColorCount = Array(colors.length).fill(0);
+                mixCount = 0;
+                totalMixCount.textContent = `Colors mixed: ${mixCount}`;
+                updatePaletteCounters();
+                //status.textContent = "";
+                hint.textContent = `Mix ${clicksRequired} colors to make the target color`;
+                tryAgainBtn.disabled = false;
+                colorPalette.childNodes.forEach(child => {
+                    child.classList.remove("disabled");
+                });
+                spinner.style.animation = "";
+            }, 1000);
+        } else {
+            //status.textContent = "";
+        }
+    }
+
+    function arraysEqual(a, b) {
+        return a.length === b.length && a.every((val, index) => val === b[index]);
+    }
+
+    function createPalette() {
+        colors.forEach(color => {
+            const colorDiv = document.createElement("div");
+            colorDiv.classList.add("color");
+            colorDiv.style.backgroundColor = color;
+            const counter = document.createElement("div");
+            counter.classList.add("palette-counter");
+            colorDiv.appendChild(counter);
+            colorDiv.addEventListener("click", () => {
+                if (!colorDiv.classList.contains("disabled")) {
+                    mixColor(color);
+                }
+            });
+            colorPalette.appendChild(colorDiv);
+        });
+    }
+
+    function updatePaletteCounters() {
+        colorPalette.childNodes.forEach((child, index) => {
+            child.querySelector(".palette-counter").textContent = mixedColorCount[index];
+        });
+    }
+
+    function resetGame() {
+        mixedColorDiv.style.backgroundColor = "rgba(0, 0, 0, 0)";
+        mixedColorDiv.classList.remove("ready");
+        mixedColorRGB = [255, 255, 255];
+        mixedColorCount = Array(colors.length).fill(0);
+        mixCount = 0;
+        totalMixCount.textContent = `Colors mixed: ${mixCount}`;
+        updatePaletteCounters();
+        status.textContent = "";
+        hint.textContent = `Mix ${clicksRequired} colors to make the target color`;
+    }
+
+    tryAgainBtn.addEventListener("click", resetGame);
+    
+    document.addEventListener("keydown", (event) => {
+      if (event.key.toLowerCase() === "r") {
+        resetGame();
+      }
+    });
+
+    targetRGB = generateTargetColor();
+    hint.textContent = `Mix ${clicksRequired} colors to make the target color`;
+    createPalette();
+    updatePaletteCounters();
+    </script>
+</body>
+
+</html>
